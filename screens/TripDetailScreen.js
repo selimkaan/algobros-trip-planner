@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,9 @@ import { Ionicons } from '@expo/vector-icons';
 const { width, height } = Dimensions.get('window');
 
 const TripDetailScreen = ({ navigation }) => {
+  const [isDestinationExpanded, setIsDestinationExpanded] = useState(false);
+  const [isDay1Expanded, setIsDay1Expanded] = useState(false);
+  const [isDay2Expanded, setIsDay2Expanded] = useState(false);
   const tripDetails = {
     title: '5 Günlük Antalya Deniz ve Romantizm Turu',
     dates: '10 - 14 Eyl',
@@ -80,15 +83,19 @@ const TripDetailScreen = ({ navigation }) => {
       day: 1,
       date: '10 Sep, 2026',
       title: "Gün 1: Antalya'ya Varış ve Kaleiçi Keşfi",
-      description: "İstanbul'dan Antalya'ya 1 saatlik uçuşla varış sonrası Hotel Mille Kaleiçi'ne gidiş"
+      shortDescription: "İstanbul'dan Antalya'ya 1 saatlik uçuşla varış sonrası Hotel Mille Kaleiçi'ne gidiş",
+      fullDescription: "İstanbul'dan Antalya'ya yaklaşık 1 saatlik uçuşla varışınızın ardından, Akra Antalya oteline giriş yapacaksınız. Otelde kısa bir dinlenmenin ardından, ailenizle birlikte Antalya'nın en güzel plajlarından biri olan Konyaaltı Plajı (Konyaaltı Plajı)'nda denizin ve güneşin tadını çıkarabilirsiniz. Akşam yemeği için otelin yakınlarında bulunan ve deniz ürünleriyle ünlü 7 Mehmet restoranını öneririm. Burada taze ve lezzetli yemeklerin keyfini çıkarabilirsiniz."
     },
     {
       day: 2,
       date: '11 Sep, 2026', 
       title: 'Gün 2: Özel Yat Turu ve Deniz Keyfi',
-      description: "Antalya'nın berrak sularında denizin keyfini çıkarın ve sıcak denizde arkad"
+      shortDescription: "Antalya'nın berrak sularında denizin keyfini çıkarın ve sıcak denizde arkad",
+      fullDescription: "Sabah erken saatlerde, doğa ve macera seven aileler için harika bir seçenek olan Köprülü Canyon Antalya: Whitewater Rafting Trip turuna katılabilirsiniz. Yaklaşık 5 saat süren bu turda, nehirde rafting yapacak, berrak sularda yüzme molası verecek ve nehir kenarında lezzetli bir öğle yemeği yiyeceksiniz. Tur sonrası Antalya'nın tarihi bölgesi Antalya Eski Şehir (Kaleiçi)'ni keşfedebilirsiniz. Burada Hadrian Kapısı, Saat Kulesi ve Antalya Marinası (Kaleiçi Yat Limanı) gibi önemli noktaları gezebilirsiniz. Akşam yemeği için Kaleiçi'nde bulunan ve yerel lezzetler sunan Seraser Fine Dining Restaurant ideal bir tercih olacaktır."
     }
   ];
+
+  const destinationExpandedText = "Antalya, Türkiye'nin en popüler tatil destinasyonlarından biridir ve özellikle aileler için ideal deniz tatili sunar. Ekim ayında hava genellikle ılık ve deniz suyu yüzmeye uygundur, bu da 8-10 Ekim tarihleri arasında rahat bir tatil yapmanızı sağlar. Antalya'nın güzel plajları, kaliteli otelleri ve zengin kültürel mirası ile unutulmaz bir deneyim yaşayabilirsiniz. Ekim ayında hava genellikle ılık olsa da, akşamları serin olabilir, yanınıza hafif bir ceket almanızı öneririm.";
 
   return (
     <View style={styles.container}>
@@ -137,21 +144,34 @@ const TripDetailScreen = ({ navigation }) => {
               </View>
               <View style={styles.destinationDetails}>
                 <Text style={styles.destinationCity}>Antalya, Turkey</Text>
-                <Text style={styles.destinationDuration}>(Day 1-5)</Text>
+                <Text style={styles.destinationDuration}>(Gün 1-5)</Text>
               </View>
             </View>
             <Text style={styles.descriptionText}>
-              Antalya, Türkiye'nin en gözde tatil destinasyonlarından biridir ve Eylül ayında deniz temelli aktiviteler için mükemmel bir
+              {isDestinationExpanded 
+                ? destinationExpandedText 
+                : "Antalya, Türkiye'nin en gözde tatil destinasyonlarından biridir ve Eylül ayında deniz temelli aktiviteler için mükemmel bir"
+              }
             </Text>
-            <Text style={styles.readMore}>... Daha fazla oku</Text>
+            {!isDestinationExpanded && (
+              <TouchableOpacity onPress={() => setIsDestinationExpanded(true)}>
+                <Text style={styles.readMore}>... Daha fazla oku</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Day Detail Card */}
           <View style={styles.dayDetailCard}>
-            <Text style={styles.dayDescription}>{dayDetails[0].description}</Text>
-            <Text style={styles.dayDate}>{dayDetails[0].date}</Text>
             <Text style={styles.dayTitle}>{dayDetails[0].title}</Text>
-            <Text style={styles.readMore}>... Daha fazla oku</Text>
+            <Text style={styles.dayDate}>{dayDetails[0].date}</Text>
+            <Text style={styles.dayDescription}>
+              {isDay1Expanded ? dayDetails[0].fullDescription : dayDetails[0].shortDescription}
+            </Text>
+            {!isDay1Expanded && (
+              <TouchableOpacity onPress={() => setIsDay1Expanded(true)}>
+                <Text style={styles.readMore}>... Daha fazla oku</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Timeline Container */}
@@ -184,10 +204,10 @@ const TripDetailScreen = ({ navigation }) => {
                 <View style={styles.accommodationCard}>
                   <Image source={{ uri: item.image }} style={styles.itemImage} />
                   <View style={styles.itemTextBlock}>
+                    <Text style={styles.itemTitle}>{item.title}</Text>
                     <Text style={styles.itemRating}>{item.rating}</Text>
                     <Text style={styles.itemPrice}>{item.price}</Text>
                     <Text style={styles.itemGuests}>{item.guests}</Text>
-                    <Text style={styles.itemTitle}>{item.title}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={16} color="#343330" />
                 </View>
@@ -208,10 +228,16 @@ const TripDetailScreen = ({ navigation }) => {
 
             {/* Day 2 Card */}
             <View style={styles.dayDetailCard2}>
-              <Text style={styles.dayDescription}>{dayDetails[1].description}</Text>
-              <Text style={styles.dayDate}>{dayDetails[1].date}</Text>
               <Text style={styles.dayTitle}>{dayDetails[1].title}</Text>
-              <Text style={styles.readMore}>... Daha fazla oku</Text>
+              <Text style={styles.dayDate}>{dayDetails[1].date}</Text>
+              <Text style={styles.dayDescription}>
+                {isDay2Expanded ? dayDetails[1].fullDescription : dayDetails[1].shortDescription}
+              </Text>
+              {!isDay2Expanded && (
+                <TouchableOpacity onPress={() => setIsDay2Expanded(true)}>
+                  <Text style={styles.readMore}>... Daha fazla oku</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             {/* Final Activity Card */}
@@ -224,10 +250,10 @@ const TripDetailScreen = ({ navigation }) => {
               <View style={styles.accommodationCard}>
                 <Image source={{ uri: itinerary[2].image }} style={styles.itemImage} />
                 <View style={styles.itemTextBlock}>
+                  <Text style={styles.itemTitle}>Tekne Turu</Text>
                   <Text style={styles.itemRating}>Harika (470 Değerlendirme)</Text>
                   <Text style={styles.itemPrice}>Gecelik 271 Dolar</Text>
                   <Text style={styles.itemGuests}>4 misafir</Text>
-                  <Text style={styles.itemTitle}>Tekne Turu</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={16} color="#343330" />
               </View>
@@ -246,8 +272,8 @@ const styles = StyleSheet.create({
   },
   header: {
     width: width,
-    height: 52,
-    paddingTop: 4,
+    height: 82,
+    paddingTop: 24,
     paddingBottom: 12,
     paddingHorizontal: 16,
     backgroundColor: '#2DC44D',
@@ -282,7 +308,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 16,
     marginBottom: 0,
-    padding: 48,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 24,
     backgroundColor: '#fff',
     borderRadius: 12,
     flexDirection: 'column',
@@ -293,7 +321,7 @@ const styles = StyleSheet.create({
   },
   tripMainInfo: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'flex-start',
     gap: 16,
     marginBottom: 13,
@@ -313,7 +341,7 @@ const styles = StyleSheet.create({
   },
   tripDatesContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     alignItems: 'center',
     gap: 4,
     padding: 4,
@@ -322,6 +350,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#757575',
     marginBottom: 13,
+    alignSelf: 'flex-start',
   },
   tripDates: {
     color: '#000',
@@ -398,8 +427,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '400',
-    lineHeight: 34.29,
     fontFamily: 'Inter',
+    textAlign: 'center',
+    lineHeight: 14,
+    includeFontPadding: false,
   },
   destinationDetails: {
     flexDirection: 'row',
@@ -451,7 +482,7 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   dayDetailCard2: {
-    marginHorizontal: 24,
+    marginHorizontal: 0,
     marginBottom: 24,
     padding: 12,
     backgroundColor: '#F1F1F1',
@@ -481,17 +512,18 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter',
   },
   timelineContainer: {
-    paddingLeft: 24,
-    paddingRight: 24,
+    paddingLeft: 0,
+    paddingRight: 0,
     position: 'relative',
+    marginHorizontal: 24,
   },
 
   timelineItem: {
     position: 'relative',
-    marginBottom: 10,
+    marginBottom: 32,
   },
   transportationCard: {
-    marginLeft: 26,
+    width: 310,
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 9,
@@ -531,18 +563,18 @@ const styles = StyleSheet.create({
   },
   timelineConnector: {
     position: 'absolute',
-    left: 50,
-    top: -10,
+    left: 24,
+    top: -16,
     width: 0,
-    height: 17,
+    height: 32,
     borderLeftWidth: 2,
     borderLeftColor: '#E4E4E4',
     borderStyle: 'dashed',
   },
   itemBadgeContainer: {
     position: 'absolute',
-    left: 39,
-    top: -13,
+    left: 13,
+    top: -19,
     zIndex: 1,
   },
   itemBadge: {
@@ -559,16 +591,17 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter',
   },
   accommodationCard: {
-    marginLeft: 26,
+    width: 310,
     flexDirection: 'row',
     alignItems: 'flex-start',
     paddingTop: 12,
     paddingHorizontal: 10,
+    paddingBottom: 12,
     backgroundColor: '#fff',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#E4E4E4',
-    height: 148,
+    height: 118,
   },
   itemImage: {
     width: 94,
@@ -578,7 +611,8 @@ const styles = StyleSheet.create({
   itemTextBlock: {
     flex: 1,
     marginLeft: 17,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
   },
   itemRating: {
     color: '#757575',
@@ -599,17 +633,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '400',
     fontFamily: 'Inter',
-    marginBottom: 8,
+    marginBottom: 0,
   },
   itemTitle: {
     color: '#000',
     fontSize: 16,
     fontWeight: '600',
     fontFamily: 'Inter',
+    marginBottom: 2,
   },
   addButtonContainer: {
-    marginLeft: 44,
-    marginTop: 24,
+    marginLeft: 0,
+    marginTop: -20,
+    marginBottom: 16,
   },
   addButton: {
     alignSelf: 'flex-start',
@@ -633,8 +669,10 @@ const styles = StyleSheet.create({
   separatorLine: {
     height: 1,
     backgroundColor: '#D9D9D9',
-    marginHorizontal: 24,
-    marginVertical: 24,
+    marginLeft: 0,
+    marginRight: 24,
+    marginTop: 32,
+    marginBottom: 32,
   },
 });
 
