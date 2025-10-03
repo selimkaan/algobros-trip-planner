@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import LandingScreen from './screens/LandingScreen';
 import ChatScreen from './screens/ChatScreen';
 import TripDetailScreen from './screens/TripDetailScreen';
+import NewTripDetailScreen from './screens/NewTripDetailScreen';
 
 const Stack = createStackNavigator();
 
@@ -21,7 +22,8 @@ export default function App() {
       >
         <Stack.Screen name="Landing" component={LandingScreen} />
         <Stack.Screen name="Chat" component={ChatScreen} />
-        <Stack.Screen name="TripDetail" component={TripDetailScreen} />
+        <Stack.Screen name="TripDetail" component={NewTripDetailScreen} />
+        <Stack.Screen name="OldTripDetail" component={TripDetailScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );

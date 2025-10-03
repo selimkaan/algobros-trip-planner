@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -8,20 +8,92 @@ import {
   Image,
   TouchableOpacity,
   Dimensions,
-  StatusBar
+  StatusBar,
+  Modal,
+  FlatList
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import TripPlannerAPI from '../services/TripPlannerAPI';
 
 const { width, height } = Dimensions.get('window');
 
-const TripDetailScreen = ({ navigation }) => {
-  const tripDetails = {
+const TripDetailScreen = ({ navigation, route }) => {
+  const [selectedPackage, setSelectedPackage] = useState({
+    departureFlight: null,
+    returnFlight: null,
+    accommodation: null
+  });
+  const [showFlightModal, setShowFlightModal] = useState(false);
+  const [showAccommodationModal, setShowAccommodationModal] = useState(false);
+  const [modalType, setModalType] = useState(''); // 'departure' or 'return'
+
+  // Get trip data from navigation params or use default
+  const tripData = route?.params?.tripData;
+  
+  // Initialize selected package with cheapest options
+  React.useEffect(() => {
+    if (tripData) {
+      setSelectedPackage({
+        departureFlight: tripData.packageInfo.cheapestDepartureFlight,
+        returnFlight: tripData.packageInfo.cheapestReturnFlight,
+        accommodation: tripData.packageInfo.cheapestAccommodation
+      });
+    }
+  }, [tripData]);
+
+  // Default data for demo if no API data is available
+  const defaultTripDetails = {
     title: '5 Günlük Antalya Deniz ve Romantizm Turu',
     dates: '10 - 14 Eyl',
     guests: '4 kişi',
     created: '3 Ekim 2025\'te Oluşturuldu',
     image: 'https://images.unsplash.com/photo-1544737151-6e4b1999c3d2?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
     mapImage: 'https://images.unsplash.com/photo-1577722560665-1c6e0ee2e4d0?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80'
+  };
+
+  // Helper functions
+  const formatFlightDates = (flights) => {
+    if (!flights || flights.length === 0) return '10 - 14 Eyl';
+    const departureDate = new Date(flights[0].departure_time.split(' ')[0].split('.').reverse().join('-'));
+    return departureDate.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' });
+  };
+
+  const handleFlightSelection = (flight) => {
+    if (modalType === 'departure') {
+      setSelectedPackage(prev => ({ ...prev, departureFlight: flight }));
+    } else {
+      setSelectedPackage(prev => ({ ...prev, returnFlight: flight }));
+    }
+    setShowFlightModal(false);
+  };
+
+  const handleAccommodationSelection = (accommodation) => {
+    setSelectedPackage(prev => ({ ...prev, accommodation }));
+    setShowAccommodationModal(false);
+  };
+
+  const openFlightModal = (type) => {
+    setModalType(type);
+    setShowFlightModal(true);
+  };
+
+  const getCurrentTripDetails = () => {
+    if (!tripData) return defaultTripDetails;
+    
+    return {
+      title: tripData.aiComments ? 
+        `${tripData.packageInfo.totalDays} Günlük AI Destekli Gezi Planı` : 
+        defaultTripDetails.title,
+      dates: formatFlightDates([tripData.packageInfo.cheapestDepartureFlight]),
+      guests: '2 kişi', // Default
+      created: new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }) + '\'te Oluşturuldu',
+      image: defaultTripDetails.image,
+      mapImage: defaultTripDetails.mapImage
+    };
+  };
+
+  const getCurrentDailyPlan = () => {
+    return tripData?.dailyPlan || [];
   };
 
   const itinerary = [
@@ -110,15 +182,15 @@ const TripDetailScreen = ({ navigation }) => {
         {/* Trip Info Card */}
         <View style={styles.tripInfoCard}>
           <View style={styles.tripMainInfo}>
-            <Text style={styles.tripTitle}>{tripDetails.title}</Text>
+            <Text style={styles.tripTitle}>{getCurrentTripDetails().title}</Text>
             <Image source={require('../assets/image_detail.png')} style={styles.tripMainImage} />
           </View>
           <View style={styles.tripDatesContainer}>
-            <Text style={styles.tripDates}>{tripDetails.dates}</Text>
+            <Text style={styles.tripDates}>{getCurrentTripDetails().dates}</Text>
             <Text style={styles.separator}>|</Text>
-            <Text style={styles.tripGuests}>{tripDetails.guests}</Text>
+            <Text style={styles.tripGuests}>{getCurrentTripDetails().guests}</Text>
           </View>
-          <Text style={styles.tripCreated}>{tripDetails.created}</Text>
+          <Text style={styles.tripCreated}>{getCurrentTripDetails().created}</Text>
         </View>
 
 
