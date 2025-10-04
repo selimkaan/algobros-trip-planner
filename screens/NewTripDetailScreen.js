@@ -28,9 +28,11 @@ const NewTripDetailScreen = ({ navigation, route }) => {
   const [showFlightModal, setShowFlightModal] = useState(false);
   const [showAccommodationModal, setShowAccommodationModal] = useState(false);
   const [showActivityModal, setShowActivityModal] = useState(false);
+  const [showAddActivityModal, setShowAddActivityModal] = useState(false);
   const [modalType, setModalType] = useState(''); // 'departure' or 'return'
   const [selectedDayIndex, setSelectedDayIndex] = useState(null);
   const [selectedActivityIndex, setSelectedActivityIndex] = useState(null);
+  const [addActivityDayIndex, setAddActivityDayIndex] = useState(null);
   const [dailyPlan, setDailyPlan] = useState([]);
 
   // Get trip data from navigation params
@@ -75,14 +77,55 @@ const NewTripDetailScreen = ({ navigation, route }) => {
     setShowActivityModal(true);
   };
 
+  const openAddActivityModal = (dayIndex) => {
+    setAddActivityDayIndex(dayIndex);
+    setShowAddActivityModal(true);
+  };
+
+  const handleAddActivity = (newActivity) => {
+    if (addActivityDayIndex !== null) {
+      const updatedDailyPlan = [...dailyPlan];
+      const dayActivities = updatedDailyPlan[addActivityDayIndex].activities;
+      
+      // Yeni etkinlik için saat belirle (son etkinlikten sonra)
+      const timeOptions = ['09:00', '13:00', '16:00', '19:00', '21:00'];
+      let newTime = '09:00';
+      
+      if (dayActivities.length > 0) {
+        const lastActivityTime = dayActivities[dayActivities.length - 1].time;
+        const currentTimeIndex = timeOptions.findIndex(time => time === lastActivityTime);
+        newTime = timeOptions[Math.min(currentTimeIndex + 1, timeOptions.length - 1)];
+      }
+      
+      // Yeni etkinliği ekle
+      updatedDailyPlan[addActivityDayIndex].activities.push({
+        ...newActivity,
+        time: newTime,
+        type: newActivity.type || 'activity'
+      });
+      
+      setDailyPlan(updatedDailyPlan);
+    }
+    setShowAddActivityModal(false);
+    setAddActivityDayIndex(null);
+  };
+
   const handleActivitySelection = (newActivity) => {
     if (selectedDayIndex !== null && selectedActivityIndex !== null) {
       const updatedDailyPlan = [...dailyPlan];
-      updatedDailyPlan[selectedDayIndex].activities[selectedActivityIndex] = {
-        ...newActivity,
-        time: updatedDailyPlan[selectedDayIndex].activities[selectedActivityIndex].time,
-        type: newActivity.type || 'activity'
-      };
+      
+      // Eğer "Etkinlik Silinmiş" seçeneği seçildiyse, etkinliği sil
+      if (newActivity.id === 'delete_activity') {
+        updatedDailyPlan[selectedDayIndex].activities.splice(selectedActivityIndex, 1);
+      } else {
+        // Normal etkinlik değiştirme
+        updatedDailyPlan[selectedDayIndex].activities[selectedActivityIndex] = {
+          ...newActivity,
+          time: updatedDailyPlan[selectedDayIndex].activities[selectedActivityIndex].time,
+          type: newActivity.type || 'activity'
+        };
+      }
+      
       setDailyPlan(updatedDailyPlan);
     }
     setShowActivityModal(false);
@@ -289,6 +332,18 @@ const NewTripDetailScreen = ({ navigation, route }) => {
       ...(tripData?.allAttractions || [])
     ];
 
+    // "Etkinlik Silinmiş" seçeneği ekle
+    const activitiesWithDelete = [
+      {
+        id: 'delete_activity',
+        name: 'Etkinlik Silinmiş',
+        location: 'Bu etkinlik kaldırılacak',
+        price: '',
+        image_url: 'https://images.unsplash.com/photo-1594736797933-d0401ba2fe65?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80'
+      },
+      ...allActivities
+    ];
+
     return (
       <Modal
         visible={showActivityModal}
@@ -303,13 +358,75 @@ const NewTripDetailScreen = ({ navigation, route }) => {
             </TouchableOpacity>
           </View>
           <FlatList
+            data={activitiesWithDelete}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => {
+              const isDeleteOption = item.id === 'delete_activity';
+              return (
+                <TouchableOpacity
+                  style={[styles.activityOption, isDeleteOption && styles.deleteActivityOption]}
+                  onPress={() => handleActivitySelection(item)}
+                >
+                  <Image 
+                    source={{ uri: item.image_url }} 
+                    style={styles.activityOptionImage}
+                    defaultSource={{uri: 'https://images.unsplash.com/photo-1582538885592-e70a5d7ab3d3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'}}
+                  />
+                  <View style={styles.activityOptionInfo}>
+                    <Text style={[styles.activityOptionName, isDeleteOption && styles.deleteOptionText]}>
+                      {item.name}
+                    </Text>
+                    <Text style={[styles.activityOptionLocation, isDeleteOption && styles.deleteOptionText]}>
+                      {item.location}
+                    </Text>
+                    {!isDeleteOption && (
+                      <Text style={styles.activityOptionPrice}>
+                        {item.price_per_night || item.price || 'Fiyat bilgisi yok'}
+                      </Text>
+                    )}
+                  </View>
+                  <Ionicons 
+                    name={isDeleteOption ? "trash-outline" : "chevron-forward"} 
+                    size={16} 
+                    color={isDeleteOption ? "#FF6B6B" : "#343330"} 
+                  />
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </View>
+      </Modal>
+    );
+  };
+
+  const renderAddActivityModal = () => {
+    // Tüm etkinlikleri birleştir (activities + attractions)
+    const allActivities = [
+      ...(tripData?.allActivities || []),
+      ...(tripData?.allAttractions || [])
+    ];
+
+    return (
+      <Modal
+        visible={showAddActivityModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Yeni Etkinlik Ekle</Text>
+            <TouchableOpacity onPress={() => setShowAddActivityModal(false)}>
+              <Ionicons name="close" size={24} color="#000" />
+            </TouchableOpacity>
+          </View>
+          <FlatList
             data={allActivities}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => {
               return (
                 <TouchableOpacity
                   style={styles.activityOption}
-                  onPress={() => handleActivitySelection(item)}
+                  onPress={() => handleAddActivity(item)}
                 >
                   <Image 
                     source={{ uri: item.image_url }} 
@@ -323,7 +440,7 @@ const NewTripDetailScreen = ({ navigation, route }) => {
                       {item.price_per_night || item.price || 'Fiyat bilgisi yok'}
                     </Text>
                   </View>
-                  <Ionicons name="chevron-forward" size={16} color="#343330" />
+                  <Ionicons name="add-circle-outline" size={16} color="#2DC44D" />
                 </TouchableOpacity>
               );
             }}
@@ -374,6 +491,15 @@ const NewTripDetailScreen = ({ navigation, route }) => {
             <Ionicons name="chevron-forward" size={16} color="#343330" />
           </TouchableOpacity>
         ))}
+        
+        {/* Etkinlik Ekleme Butonu */}
+        <TouchableOpacity
+          style={styles.addActivityButton}
+          onPress={() => openAddActivityModal(dayIndex)}
+        >
+          <Ionicons name="add-circle-outline" size={24} color="#2DC44D" />
+          <Text style={styles.addActivityText}>Etkinlik Ekle</Text>
+        </TouchableOpacity>
       </View>
     ));
   };
@@ -525,6 +651,7 @@ const NewTripDetailScreen = ({ navigation, route }) => {
       {renderFlightModal()}
       {renderAccommodationModal()}
       {renderActivityModal()}
+      {renderAddActivityModal()}
     </SafeAreaView>
   );
 };
@@ -1052,6 +1179,32 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#2DC44D',
+  },
+  deleteActivityOption: {
+    backgroundColor: '#FFF5F5',
+    borderColor: '#FFB8B8',
+  },
+  deleteOptionText: {
+    color: '#FF6B6B',
+  },
+  addActivityButton: {
+    backgroundColor: '#F8FFF9',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#E8F5E8',
+    borderStyle: 'dashed',
+  },
+  addActivityText: {
+    color: '#2DC44D',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 });
 

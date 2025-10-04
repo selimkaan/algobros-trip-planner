@@ -307,7 +307,7 @@ const TripDetailScreen = ({ navigation }) => {
             style={styles.reserveButton}
             onPress={() => navigation.navigate('Confirmation')}
           >
-            <Text style={styles.reserveButtonText}>Rezerve Et</Text>
+            <Text style={styles.reserveButtonText}>Hemen Rezerve Et</Text>
             <Ionicons name="chevron-forward" size={16} color="#fff" />
           </TouchableOpacity>
         </View>
