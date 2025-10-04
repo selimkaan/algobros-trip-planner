@@ -336,7 +336,7 @@ const NewTripDetailScreen = ({ navigation, route }) => {
     const activitiesWithDelete = [
       {
         id: 'delete_activity',
-        name: 'Etkinlik Silinmiş',
+        name: 'Etkinliği Sil',
         location: 'Bu etkinlik kaldırılacak',
         price: '',
         image_url: 'https://images.unsplash.com/photo-1594736797933-d0401ba2fe65?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80'
