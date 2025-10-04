@@ -101,7 +101,10 @@ const LandingScreen = ({ navigation }) => {
               <Ionicons name="search" size={24} color="#00A651" />
               <Text style={[styles.navText, styles.activeNavText]}>Seyahat Planla</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.navItem}>
+            <TouchableOpacity 
+              style={styles.navItem}
+              onPress={() => navigation.navigate('MyTrips')}
+            >
               <Ionicons name="briefcase-outline" size={24} color="#999" />
               <Text style={styles.navText}>Seyahatlerim</Text>
             </TouchableOpacity>

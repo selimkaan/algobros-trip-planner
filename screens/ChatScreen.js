@@ -11,22 +11,20 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
-  Image
+  Image,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import TripPlannerAPI from '../services/TripPlannerAPI';
 
 const { width, height } = Dimensions.get('window');
 
 const ChatScreen = ({ navigation, route }) => {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      type: 'ai',
-      content: 'Köleniz olayım efendim. Hayranım size. Elimden geleni yapacağım. Size yardım etmek istiyorum. Size on numara gezi planlayacağım.Nasıl bir gezi istiyorsunuz?'
-    }
-  ]);
+  const [messages, setMessages] = useState([]); // Temizledik - sabit mesaj yok
   const [inputValue, setInputValue] = useState('');
   const [isKeyboardVisible, setKeyboardVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [tripData, setTripData] = useState(null);
   const scrollViewRef = useRef(null);
 
   const suggestedTags = ['Deniz ve plaj', 'Tarih ve kültür', 'Doğa ve yürüyüş'];
@@ -40,16 +38,70 @@ const ChatScreen = ({ navigation, route }) => {
       };
       setMessages(prev => [...prev, newMessage]);
       
-      setTimeout(() => {
-        const aiResponse = {
-          id: Date.now() + 1,
-          type: 'ai',
-          content: "Harika seçim, Mehmet! Antalya'da 5 günlük bir gezi planlamak için birkaç sorum olacak:\n• Nereden hareket edeceksiniz? istanbul'dan mi?\n\n• Kaç kisi seyahat edeceksiniz? Yaninizda baska çiftler var mi?\n\n• Gezi tarihleri kesin mi? Hangi tarihler arasinda planliyorsunuz?\n\n• Gezi amaciniz nedir? Tatil, romantik kaçamak, macera, yoksa bagka bir sey mi?\n\nBu bilgilerle size tam size göre bir Antalya gezisi planlayabilirim!"
-        };
-        setMessages(prev => [...prev, aiResponse]);
-      }, 1000);
+      // İlk mesajı direkt backend'e gönder
+      handleInitialMessage(route.params.initialMessage);
     }
   }, [route.params]);
+
+  const handleInitialMessage = async (message) => {
+    // Loading mesajı göster
+    setIsLoading(true);
+    const loadingMessage = {
+      id: Date.now() + 1,
+      type: 'ai',
+      content: 'Gezi planınız hazırlanıyor...'
+    };
+    setMessages(prev => [...prev, loadingMessage]);
+
+    try {
+      // API çağrısı yap
+      const response = await TripPlannerAPI.planTrip(message);
+      
+      if (response.success) {
+        // Başarılı response
+        const formattedTripData = TripPlannerAPI.formatTripData(response.data);
+        setTripData(formattedTripData);
+
+        // Loading mesajını kaldır ve gerçek cevabı ekle
+        setMessages(prev => prev.filter(msg => msg.id !== loadingMessage.id));
+        
+        const aiResponse = {
+          id: Date.now() + 2,
+          type: 'ai',
+          content: formattedTripData.aiComments || 'Mükemmel! Size özel bir gezi planı hazırladım.'
+        };
+        
+        const tripCard = {
+          id: Date.now() + 3,
+          type: 'tripCard',
+          title: `${formattedTripData.packageInfo.totalDays} Günlük Gezi Planı`,
+          tripData: formattedTripData
+        };
+        
+        setMessages(prev => [...prev, aiResponse, tripCard]);
+      } else {
+        // Hata durumu
+        setMessages(prev => prev.filter(msg => msg.id !== loadingMessage.id));
+        const errorMessage = {
+          id: Date.now() + 2,
+          type: 'ai',
+          content: 'Üzgünüm, gezi planını hazırlarken bir sorun yaşandı. Lütfen tekrar deneyin.'
+        };
+        setMessages(prev => [...prev, errorMessage]);
+      }
+    } catch (error) {
+      console.error('Error planning initial trip:', error);
+      setMessages(prev => prev.filter(msg => msg.id !== loadingMessage.id));
+      const errorMessage = {
+        id: Date.now() + 2,
+        type: 'ai',
+        content: 'Üzgünüm, şu anda gezi planlama servisimizde teknik bir sorun var. Lütfen daha sonra tekrar deneyin.'
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     scrollViewRef.current?.scrollToEnd({ animated: true });
@@ -71,7 +123,7 @@ const ChatScreen = ({ navigation, route }) => {
     };
   }, []);
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (inputValue.trim()) {
       const newMessage = {
         id: Date.now(),
@@ -79,48 +131,87 @@ const ChatScreen = ({ navigation, route }) => {
         content: inputValue
       };
       setMessages(prev => [...prev, newMessage]);
+      const currentInput = inputValue;
       setInputValue('');
       
-      // Check if user provided clear trip instructions to show trip recommendation
-      setTimeout(() => {
-        const userMessage = inputValue.toLowerCase();
-        const isTripRequestClear = 
-          userMessage.includes('istanbul') || 
-          userMessage.includes('çift') || 
-          userMessage.includes('yüzmek') || 
-          userMessage.includes('romantik') ||
-          (userMessage.includes('gün') && userMessage.includes('antalya'));
+      // Her mesaj için backend'e git
+      setIsLoading(true);
+      const loadingMessage = {
+        id: Date.now() + 1,
+        type: 'ai',
+        content: 'Gezi planınız hazırlanıyor...'
+      };
+      setMessages(prev => [...prev, loadingMessage]);
+
+      try {
+        // API çağrısı yap
+        const response = await TripPlannerAPI.planTrip(currentInput);
         
-        if (isTripRequestClear) {
-          // Add AI final response with trip recommendation
-          const tripResponse = {
-            id: Date.now() + 1,
+        if (response.success) {
+          // Process the API response
+          const formattedTripData = TripPlannerAPI.formatTripData(response.data);
+          setTripData(formattedTripData);
+
+          // Remove loading message and add AI response
+          setMessages(prev => prev.filter(msg => msg.id !== loadingMessage.id));
+          
+          const aiResponse = {
+            id: Date.now() + 2,
             type: 'ai',
-            content: "Mükemmel! Tüm bilgileri aldım. Size özel bir Antalya gezisi hazırladım."
+            content: formattedTripData.aiComments || 'İşte size özel hazırladığım plan!'
           };
           
           const tripCard = {
-            id: Date.now() + 2,
+            id: Date.now() + 3,
             type: 'tripCard',
-            title: '5 Günlük Antalya Deniz ve Romantizm Turu'
+            title: `${formattedTripData.packageInfo.totalDays} Günlük Gezi Planı`,
+            tripData: formattedTripData
           };
           
-          setMessages(prev => [...prev, tripResponse, tripCard]);
+          setMessages(prev => [...prev, aiResponse, tripCard]);
         } else {
-          // Continue asking questions
-          const followUpQuestion = {
-            id: Date.now() + 1,
+          // Handle API error
+          setMessages(prev => prev.filter(msg => msg.id !== loadingMessage.id));
+          const errorMessage = {
+            id: Date.now() + 2,
             type: 'ai',
-            content: 'Birkaç soru daha sormak istiyorum. Konaklama tercihiniz nedir? Otel mi yoksa apart otel mi tercih edersiniz?'
+            content: 'Üzgünüm, gezi planını hazırlarken bir sorun yaşandı. Lütfen tekrar deneyin.'
           };
-          setMessages(prev => [...prev, followUpQuestion]);
+          setMessages(prev => [...prev, errorMessage]);
         }
-      }, 1000);
+      } catch (error) {
+        console.error('Error planning trip:', error);
+        setMessages(prev => prev.filter(msg => msg.id !== loadingMessage.id));
+        const errorMessage = {
+          id: Date.now() + 2,
+          type: 'ai',
+          content: 'Üzgünüm, şu anda gezi planlama servisimizde teknik bir sorun var. Lütfen daha sonra tekrar deneyin.'
+        };
+        setMessages(prev => [...prev, errorMessage]);
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
   const dismissKeyboard = () => {
     Keyboard.dismiss();
+  };
+
+  // Helper function to calculate total price
+  const calculateTotalPrice = (tripData) => {
+    if (!tripData?.packageInfo) return '0';
+    
+    const { cheapestDepartureFlight, cheapestReturnFlight, cheapestAccommodation, totalDays } = tripData.packageInfo;
+    
+    const selectedPackage = {
+      departureFlight: cheapestDepartureFlight,
+      returnFlight: cheapestReturnFlight,
+      accommodation: cheapestAccommodation
+    };
+    
+    const total = TripPlannerAPI.calculateTotalPrice(selectedPackage, totalDays);
+    return total.toFixed(0);
   };
 
   return (
@@ -148,6 +239,12 @@ const ChatScreen = ({ navigation, route }) => {
               return (
                 <View key={message.id} style={styles.aiMessage}>
                   <Text style={styles.messageContent}>{message.content}</Text>
+                  {/* Loading indicator for planning messages */}
+                  {message.content.includes('hazırlanıyor') && (
+                    <View style={styles.loadingContainer}>
+                      <ActivityIndicator size="small" color="#2DC44D" />
+                    </View>
+                  )}
                 </View>
               );
             }
@@ -174,13 +271,32 @@ const ChatScreen = ({ navigation, route }) => {
                       />
                     </View>
                     <View style={styles.tripDetailsContainer}>
-                      <Text style={styles.tripTitle}>5 Günlük Antalya Deniz ve Romantiz...</Text>
-                      <TouchableOpacity 
-                        style={styles.viewButton}
-                        onPress={() => navigation.navigate('TripDetail')}
-                      >
-                        <Text style={styles.viewButtonText}>Görüntüle</Text>
-                      </TouchableOpacity>
+                      <View style={styles.tripDetailsTop}>
+                        <Text style={styles.tripTitle}>{message.title}</Text>
+                        {message.tripData && (
+                          <View style={styles.tripSummary}>
+                            <Text style={styles.tripSummaryText}>
+                              {message.tripData.packageInfo.tripDates}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                      
+                      <View style={styles.tripDetailsBottom}>
+                        {/* Toplam fiyat gösterimi */}
+                        {message.tripData && (
+                          <Text style={styles.totalPriceText}>
+                            Toplam: {calculateTotalPrice(message.tripData)} TL
+                          </Text>
+                        )}
+                        
+                        <TouchableOpacity 
+                          style={styles.viewButton}
+                          onPress={() => navigation.navigate('TripDetail', { tripData: message.tripData })}
+                        >
+                          <Text style={styles.viewButtonText}>Görüntüle</Text>
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   </View>
                 </View>
@@ -291,6 +407,13 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     marginBottom: 12,
     maxWidth: '80%',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    paddingVertical: 4,
   },
   messageContent: {
     color: '#000',
