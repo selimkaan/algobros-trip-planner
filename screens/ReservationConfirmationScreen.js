@@ -7,9 +7,15 @@ import {
   SafeAreaView,
   StatusBar,
   Image,
-  Dimensions
+  Dimensions,
+  Alert,
+  Platform,
+  Linking,
+  ScrollView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Sharing from 'expo-sharing';
+import * as Calendar from 'expo-calendar';
 
 const { width, height } = Dimensions.get('window');
 
@@ -24,72 +30,216 @@ const ReservationConfirmationScreen = ({ navigation, route }) => {
     });
   };
 
+  const handleShareTrip = async () => {
+    try {
+      // Rezervasyon ID'si oluştur (gerçek uygulamada backend'den gelir)
+      const reservationId = Date.now().toString();
+      const shareUrl = `https://enuygun.com/aitripplanner/id/${reservationId}`;
+      const shareMessage = `${tripData?.packageInfo?.totalDays || 3} günlük muhteşem gezi planımı kontrol et! 🌟\n\n${shareUrl}`;
+      
+      // Check if sharing is available
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (isAvailable) {
+        // For Expo, we need to create a temporary file to share
+        // For now, we'll use a simple URL share via Linking
+        const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(shareMessage)}`;
+        const canOpenWhatsApp = await Linking.canOpenURL(whatsappUrl);
+        
+        if (canOpenWhatsApp) {
+          Alert.alert(
+            'Paylaş',
+            'Gezi planınızı nasıl paylaşmak istiyorsunuz?',
+            [
+              {
+                text: 'WhatsApp',
+                onPress: () => Linking.openURL(whatsappUrl)
+              },
+              {
+                text: 'Diğer',
+                onPress: () => {
+                  // Generic share
+                  const mailUrl = `mailto:?subject=Gezi Planım&body=${encodeURIComponent(shareMessage)}`;
+                  Linking.openURL(mailUrl);
+                }
+              },
+              { text: 'İptal', style: 'cancel' }
+            ]
+          );
+        } else {
+          // Fallback to mail
+          const mailUrl = `mailto:?subject=Gezi Planım&body=${encodeURIComponent(shareMessage)}`;
+          Linking.openURL(mailUrl);
+        }
+      } else {
+        Alert.alert('Uyarı', 'Bu cihazda paylaşım mevcut değil.');
+      }
+    } catch (error) {
+      console.log('Share error:', error);
+      Alert.alert('Hata', 'Paylaşım sırasında bir hata oluştu.');
+    }
+  };
+
+  const handleAddToCalendar = async () => {
+    try {
+      // Calendar permissions
+      const { status } = await Calendar.requestCalendarPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('İzin Gerekli', 'Takvime etkinlik eklemek için izin verin.');
+        return;
+      }
+
+      // Default calendar
+      const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+      const defaultCalendar = calendars.find(cal => cal.source.name === 'Default') || calendars[0];
+
+      if (!defaultCalendar) {
+        Alert.alert('Hata', 'Takvim bulunamadı.');
+        return;
+      }
+
+      // Create event
+      const eventDetails = {
+        title: `${tripData?.packageInfo?.totalDays || 3} Günlük Gezi`,
+        startDate: new Date(tripData?.packageInfo?.departureDate || new Date()),
+        endDate: new Date(tripData?.packageInfo?.returnDate || new Date()),
+        timeZone: 'Europe/Istanbul',
+        notes: `Toplam: ${tripData?.packageInfo?.totalPrice || '0'} TL\nRezervasyon: Enuygun AI Trip Planner`,
+        alarms: [{ relativeOffset: -24 * 60 }] // 1 day before
+      };
+
+      const eventId = await Calendar.createEventAsync(defaultCalendar.id, eventDetails);
+      Alert.alert('Başarılı!', 'Gezi planınız takviminize eklendi.');
+    } catch (error) {
+      console.log('Calendar error:', error);
+      Alert.alert('Hata', 'Takvime eklenirken bir hata oluştu.');
+    }
+  };
+
+  const handleAddToWallet = async () => {
+    try {
+      // Expo Go'da Apple Wallet native erişimi sınırlı
+      // Production'da EAS Build ile kullanılabilir
+      Alert.alert(
+        'Apple Wallet', 
+        'Gezi bilgilerinizi Apple Wallet\'a eklemek için:\n\n1. Uygulamayı App Store\'dan indirin\n2. Bu özellik production sürümde aktif olacak\n\n📱 Demo sürümde simüle edildi!',
+        [
+          {
+            text: 'Anladım',
+            style: 'default'
+          },
+          {
+            text: 'Simüle Et',
+            onPress: () => {
+              Alert.alert('✅ Başarılı!', 'Gezi bilgileriniz Apple Wallet\'a eklendi!\n\n(Demo modunda simüle edildi)');
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.log('Wallet error:', error);
+      Alert.alert('Hata', 'Wallet\'a eklenirken bir hata oluştu.');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#2DC44D" />
       
-      <View style={styles.content}>
-        {/* Success Icon */}
-        <View style={styles.successIconContainer}>
-          <View style={styles.successIcon}>
-            <Ionicons name="checkmark" size={48} color="#FFFFFF" />
-          </View>
-        </View>
-
-        {/* Success Message */}
-        <Text style={styles.title}>Rezervasyon Tamamlandı!</Text>
-        <Text style={styles.subtitle}>
-          Gezi planınız başarıyla rezerve edildi. Güzel bir seyahat geçirmeniz dileğiyle!
-        </Text>
-
-        {/* Trip Summary Card */}
-        {tripData && (
-          <View style={styles.tripSummaryCard}>
-            <Image 
-              source={require('../assets/plan_rec_image.png')} 
-              style={styles.tripImage}
-              resizeMode="cover"
-            />
-            <View style={styles.tripInfo}>
-              <Text style={styles.tripTitle}>
-                {tripData.packageInfo?.totalDays || 3} Günlük Gezi Planı
-              </Text>
-              <Text style={styles.tripDates}>
-                {tripData.packageInfo?.departureDate} - {tripData.packageInfo?.returnDate}
-              </Text>
-              <View style={styles.priceContainer}>
-                <Text style={styles.totalPrice}>
-                  Toplam: {tripData.packageInfo?.totalPrice || '0'} TL
-                </Text>
-              </View>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.content}>
+          {/* Success Icon */}
+          <View style={styles.successIconContainer}>
+            <View style={styles.successIcon}>
+              <Ionicons name="checkmark" size={48} color="#FFFFFF" />
             </View>
           </View>
-        )}
 
-        {/* Confirmation Details */}
-        <View style={styles.confirmationCard}>
-          <View style={styles.confirmationRow}>
-            <Ionicons name="mail" size={20} color="#2DC44D" />
-            <Text style={styles.confirmationText}>
-              Rezervasyon detayları e-posta adresinize gönderildi
-            </Text>
+          {/* Success Message */}
+          <Text style={styles.title}>Rezervasyon Tamamlandı!</Text>
+          <Text style={styles.subtitle}>
+            Gezi planınız başarıyla rezerve edildi. Güzel bir seyahat geçirmeniz dileğiyle!
+          </Text>
+
+          {/* Trip Summary Card */}
+          {tripData && (
+            <View style={styles.tripSummaryCard}>
+              <Image 
+                source={require('../assets/plan_rec_image.png')} 
+                style={styles.tripImage}
+                resizeMode="cover"
+              />
+              <View style={styles.tripInfo}>
+                <Text style={styles.tripTitle}>
+                  {tripData.packageInfo?.totalDays || 3} Günlük Gezi Planı
+                </Text>
+                <Text style={styles.tripDates}>
+                  {tripData.packageInfo?.departureDate} - {tripData.packageInfo?.returnDate}
+                </Text>
+                <View style={styles.priceContainer}>
+                  <Text style={styles.totalPrice}>
+                    Toplam: {tripData.packageInfo?.totalPrice || '0'} TL
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          {/* Confirmation Details */}
+          <View style={styles.confirmationCard}>
+            <View style={styles.confirmationRow}>
+              <Ionicons name="mail" size={20} color="#2DC44D" />
+              <Text style={styles.confirmationText}>
+                Rezervasyon detayları e-posta adresinize gönderildi
+              </Text>
+            </View>
+            <View style={styles.confirmationRow}>
+              <Ionicons name="calendar" size={20} color="#2DC44D" />
+              <Text style={styles.confirmationText}>
+                Seyahat tarihinden 24 saat önce hatırlatma alacaksınız
+              </Text>
+            </View>
+            <View style={styles.confirmationRow}>
+              <Ionicons name="support" size={20} color="#2DC44D" />
+              <Text style={styles.confirmationText}>
+                Sorularınız için 7/24 destek hizmetimiz mevcuttur
+              </Text>
+            </View>
           </View>
-          <View style={styles.confirmationRow}>
-            <Ionicons name="calendar" size={20} color="#2DC44D" />
-            <Text style={styles.confirmationText}>
-              Seyahat tarihinden 24 saat önce hatırlatma alacaksınız
-            </Text>
-          </View>
-          <View style={styles.confirmationRow}>
-            <Ionicons name="support" size={20} color="#2DC44D" />
-            <Text style={styles.confirmationText}>
-              Sorularınız için 7/24 destek hizmetimiz mevcuttur
-            </Text>
+          
+          {/* Action Buttons */}
+          <View style={styles.actionButtonsContainer}>
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.shareButton]}
+              onPress={handleShareTrip}
+            >
+              <Ionicons name="share-outline" size={24} color="#FFFFFF" />
+              <Text style={styles.actionButtonText}>Arkadaşına Gönder</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.calendarButton]}
+              onPress={handleAddToCalendar}
+            >
+              <Ionicons name="calendar-outline" size={24} color="#FFFFFF" />
+              <Text style={styles.actionButtonText}>Takvime Ekle</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.walletButton]}
+              onPress={handleAddToWallet}
+            >
+              <Ionicons name="wallet-outline" size={24} color="#FFFFFF" />
+              <Text style={styles.actionButtonText}>Apple Cüzdana Ekle</Text>
+            </TouchableOpacity>
           </View>
         </View>
-      </View>
+      </ScrollView>
 
-      {/* Action Button */}
+      {/* Fixed Bottom Button */}
       <View style={styles.bottomSection}>
         <TouchableOpacity 
           style={styles.viewTripsButton}
@@ -108,8 +258,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#2DC44D',
   },
-  content: {
+  scrollView: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100, // Bottom button için alan bırak
+  },
+  content: {
     paddingHorizontal: 24,
     paddingTop: 40,
     alignItems: 'center',
@@ -203,8 +358,14 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   bottomSection: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
     paddingHorizontal: 24,
     paddingBottom: 32,
+    paddingTop: 16,
+    backgroundColor: '#2DC44D',
   },
   viewTripsButton: {
     backgroundColor: '#FFFFFF',
@@ -225,6 +386,42 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginRight: 8,
+  },
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+    paddingHorizontal: 8,
+  },
+  actionButton: {
+    flex: 1,
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    marginHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  shareButton: {
+    backgroundColor: 'rgba(220, 220, 220, 0.9)',
+    borderColor: 'rgba(200, 200, 200, 1)',
+  },
+  calendarButton: {
+    backgroundColor: 'rgba(255, 59, 48, 0.6)',
+    borderColor: 'rgba(255, 59, 48, 0.8)',
+  },
+  walletButton: {
+    backgroundColor: 'rgba(162, 132, 94, 0.6)',
+    borderColor: 'rgba(162, 132, 94, 0.8)',
+  },
+  actionButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'center',
+    marginTop: 8,
+    lineHeight: 16,
   },
 });
 

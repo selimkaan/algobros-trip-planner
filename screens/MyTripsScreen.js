@@ -64,7 +64,10 @@ const MyTripsScreen = ({ navigation }) => {
   };
 
   const viewTripDetails = (reservation) => {
-    navigation.navigate('TripDetail', { tripData: reservation.tripData });
+    navigation.navigate('TripDetail', { 
+      tripData: reservation.tripData,
+      isReserved: true // Bu seyahat zaten rezerve edilmiş
+    });
   };
 
   const renderReservationCard = (reservation) => {

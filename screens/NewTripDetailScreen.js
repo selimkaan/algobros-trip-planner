@@ -35,6 +35,7 @@ const NewTripDetailScreen = ({ navigation, route }) => {
 
   // Get trip data from navigation params
   const tripData = route?.params?.tripData;
+  const isReserved = route?.params?.isReserved || false; // Rezerve edilmiş mi kontrol et
   
   // Initialize selected package with cheapest options and daily plan
   React.useEffect(() => {
@@ -414,10 +415,12 @@ const NewTripDetailScreen = ({ navigation, route }) => {
           </View>
           <Text style={styles.tripCreated}>{getCurrentTripDetails().created}</Text>
           
-          {/* Rezerve Et Butonu */}
-          <TouchableOpacity style={styles.reserveButton} onPress={handleReservation}>
-            <Text style={styles.reserveButtonText}>Rezerve Et</Text>
-          </TouchableOpacity>
+          {/* Rezerve Et Butonu - Sadece rezerve edilmemiş için göster */}
+          {!isReserved && (
+            <TouchableOpacity style={styles.reserveButton} onPress={handleReservation}>
+              <Text style={styles.reserveButtonText}>Rezerve Et</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* AI Comments */}
@@ -503,17 +506,19 @@ const NewTripDetailScreen = ({ navigation, route }) => {
           </View>
         )}
         
-        {/* Gezi Tutarı ve Rezerve Et */}
-        <View style={styles.finalPriceSection}>
-          <View style={styles.totalPriceContainer}>
-            <Text style={styles.totalLabel}>Toplam Gezi Tutarı</Text>
-            <Text style={styles.totalAmount}>{calculateTotalPrice()} TL</Text>
+        {/* Gezi Tutarı ve Rezerve Et - Sadece rezerve edilmemiş için göster */}
+        {!isReserved && (
+          <View style={styles.finalPriceSection}>
+            <View style={styles.totalPriceContainer}>
+              <Text style={styles.totalLabel}>Toplam Gezi Tutarı</Text>
+              <Text style={styles.totalAmount}>{calculateTotalPrice()} TL</Text>
+            </View>
+            
+            <TouchableOpacity style={styles.finalReserveButton} onPress={handleReservation}>
+              <Text style={styles.finalReserveButtonText}>Rezerve Et</Text>
+            </TouchableOpacity>
           </View>
-          
-          <TouchableOpacity style={styles.finalReserveButton} onPress={handleReservation}>
-            <Text style={styles.finalReserveButtonText}>Rezerve Et</Text>
-          </TouchableOpacity>
-        </View>
+        )}
       </ScrollView>
 
       {/* Modals */}
