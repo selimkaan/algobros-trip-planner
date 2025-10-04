@@ -114,6 +114,64 @@ class TripPlannerAPI {
     }));
   }
 
+  // Distribute activities and attractions across trip days
+  static distributeDailyActivities(activities, attractions, tripDays, departureFlight = null) {
+    const allActivities = [...(activities || []), ...(attractions || [])];
+    
+    if (allActivities.length === 0 || tripDays <= 0) {
+      return { dailyPlan: [], unusedActivities: [] };
+    }
+
+    // Başlangıç tarihini uçuş tarihinden al
+    let startDate = new Date();
+    if (departureFlight && departureFlight.departure_time) {
+      startDate = new Date(departureFlight.departure_time);
+    }
+
+    // Karıştır ve rastgele dağıt
+    const shuffled = [...allActivities].sort(() => Math.random() - 0.5);
+    const dailyPlan = [];
+    const activitiesPerDay = Math.max(2, Math.floor(allActivities.length / tripDays));
+    
+    let activityIndex = 0;
+
+    for (let day = 1; day <= tripDays; day++) {
+      // Her gün için tarihi hesapla (departure tarihinden itibaren)
+      const currentDate = new Date(startDate);
+      currentDate.setDate(startDate.getDate() + (day - 1));
+      
+      const dayActivities = [];
+      const timesOfDay = ['09:00', '13:00', '16:00', '19:00'];
+      
+      for (let i = 0; i < Math.min(activitiesPerDay, timesOfDay.length) && activityIndex < shuffled.length; i++) {
+        const activity = shuffled[activityIndex];
+        dayActivities.push({
+          id: activity.id,
+          name: activity.name,
+          location: activity.location,
+          time: timesOfDay[i],
+          type: 'activity',
+          price: activity.price || activity.price_per_night || '30 EUR',
+          image_url: activity.image_url || 'https://images.unsplash.com/photo-1582538885592-e70a5d7ab3d3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80'
+        });
+        activityIndex++;
+      }
+
+      dailyPlan.push({
+        day: day,
+        date: currentDate.toISOString().split('T')[0],
+        title: `${day}. Gün`,
+        description: `${day}. gün etkinlikleri`,
+        activities: dayActivities
+      });
+    }
+
+    // Kullanılmayan etkinlikler
+    const unusedActivities = shuffled.slice(activityIndex);
+
+    return { dailyPlan, unusedActivities };
+  }
+
   static formatTripData(apiResponse) {
     const {
       departure_flights,
@@ -136,8 +194,19 @@ class TripPlannerAPI {
     // Tarih formatını oluştur
     const tripDates = this.formatTripDates(cheapestDepartureFlight, cheapestReturnFlight);
 
-    // Günlük planı işle
-    const dailyPlan = this.processDailyPlan(itinerary);
+    // Günlük planı işle - eğer itinerary boşsa otomatik oluştur
+    let dailyPlan = this.processDailyPlan(itinerary);
+    
+    // Eğer itinerary boş veya dailyPlan boşsa, activities ve attractions'dan otomatik plan oluştur
+    if (!dailyPlan || dailyPlan.length === 0) {
+      const { dailyPlan: generatedPlan, unusedActivities } = this.distributeDailyActivities(
+        activities || [], 
+        attractions || [], 
+        tripDays,
+        cheapestDepartureFlight  // Başlangıç tarihini almak için
+      );
+      dailyPlan = generatedPlan;
+    }
 
     return {
       originalData: apiResponse,
