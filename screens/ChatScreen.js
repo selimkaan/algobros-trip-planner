@@ -616,13 +616,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tripDetailsBottom: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginTop: 8,
-    gap: 8,
   },
   viewButton: {
-    alignSelf: 'stretch',
     height: 33,
     paddingHorizontal: 16,
     paddingVertical: 4,
